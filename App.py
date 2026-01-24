@@ -6,8 +6,11 @@ from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QRect, Qt
 import os
 import signal
 from pynput import keyboard
+import threading
 
 from stickman import Stickman
+from gemini import get_snarky_comment
+import speech
 
 
 class SignalHandler(QObject):
@@ -17,13 +20,15 @@ class SignalHandler(QObject):
 
 
 class App:
-    def __init__(self):
+    def __init__(self, use_apis=True):
         self.running = True
+        self.use_apis = use_apis
         self.overlay = None
         self.keyboard_listener = None
         self.signal_handler = SignalHandler()
         self.qt_app = None
         self.stickman = None
+        self.gemini_thread = None
 
     def stuff_i_understand(self):
         screen_geometry = QRect(0, 0, 1920, 1200)
@@ -36,10 +41,16 @@ class App:
         # Set up collision map provider so stickman can update it at 20fps
         self.stickman.collision_map_provider = screen_read.get_collision_map
 
-        # Set up 60 FPS update timer for stickman
+        # Set up 60 FPS updijijll timer for stickman
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_game)
         self.update_timer.start(16)  # ~60 FPS (1000ms / 60 = 16.67ms)
+
+        # Start continuous Gemini comments in background thread
+        self.gemini_thread = threading.Thread(
+            target=self.continuous_gemini_comments, daemon=True
+        )
+        self.gemini_thread.start()
 
     def update_game(self):
         """Called at 60 FPS to update game state and refresh display"""
@@ -68,6 +79,44 @@ class App:
 
             # Update overlay with new stickman position
             self.overlay.set_images(images)
+
+    def continuous_gemini_comments(self):
+        """Continuously generate and speak snarky comments from Gemini"""
+        import time
+        from pygame import mixer
+
+        mixer.init()
+
+        while self.running:
+            if not self.use_apis:
+                time.sleep(1)
+                continue
+
+            try:
+                comment = get_snarky_comment()
+
+                if comment is None:
+                    print("Error: Received no response from Gemini")
+                else:
+                    print(f"\n🤖 Gemini says: {comment}")
+
+                    # Convert text to speech and play it
+                    try:
+                        audio_stream = speech.text_to_speech_stream(comment)
+                        mixer.music.load(audio_stream)
+                        mixer.music.play()
+
+                        # Wait for the audio to finish playing
+                        while mixer.music.get_busy():
+                            time.sleep(0.1)
+                    except Exception as e:
+                        print(f"Error converting to speech: {e}")
+
+            except Exception as e:
+                print(f"Error getting Gemini comment: {e}")
+
+            # Wait a bit before getting next comment
+            time.sleep(5)
 
     def start(self):
         """Start the application with global hotkey listener"""
