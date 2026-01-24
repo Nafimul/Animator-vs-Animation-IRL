@@ -202,11 +202,21 @@ class Overlay(QWidget):
     def _pixmap_from_url(self, url: str) -> QPixmap:
         pm = QPixmap()
         try:
+            # Check if it's a local file path
+            if not url.startswith(("http://", "https://", "file://")):
+                # It's a local file path - load directly
+                pm = QPixmap(url)
+                if pm.isNull():
+                    print(f"Warning: Failed to load image from: {url}")
+                return pm
+
+            # It's a URL - download and load
             with urllib.request.urlopen(url) as resp:
                 data = resp.read()
             pm.loadFromData(data)
-        except Exception:
+        except Exception as e:
             # Keep null pixmap if download/load fails
+            print(f"Error loading image from {url}: {e}")
             return QPixmap()
         return pm
 

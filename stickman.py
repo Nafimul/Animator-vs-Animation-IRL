@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Optional, Tuple
 import numpy as np
+from pynput import keyboard
 
 
 # ----------------------------
 # Configurable performance knobs
 # ----------------------------
-TARGET_FPS: int = 60                 # <<< change this instead of hardcoding "60fps"
-COLLISION_MAP_FPS: int = 20          # <<< change this instead of hardcoding "20fps"
+TARGET_FPS: int = 60  # <<< change this instead of hardcoding "60fps"
+COLLISION_MAP_FPS: int = 20  # <<< change this instead of hardcoding "20fps"
 DT: float = 1.0 / TARGET_FPS
 COLLISION_MAP_DT: float = 1.0 / COLLISION_MAP_FPS
 
@@ -21,9 +22,9 @@ CollisionMap = np.ndarray  # expected shape (H, W) dtype=bool, True = solid/coll
 @dataclass
 class Stickman:
     # Core state
-    pos: Vec2 = (100.0, 100.0)  # (x, y) in pixels (top-left of the stickman AABB)
-    width: int = 48
-    height: int = 80
+    pos: Vec2 = (1000.0, 200.0)  # (x, y) in pixels (top-left of the stickman AABB)
+    width: int = 21
+    height: int = 30
 
     # Collision world (True = solid)
     collision_map: Optional[CollisionMap] = None
@@ -37,9 +38,9 @@ class Stickman:
     wants_jump: bool = False
 
     # Physics
-    speed: float = 280.0          # horizontal speed px/s
+    speed: float = 280.0  # horizontal speed px/s
     jump_velocity: float = 520.0  # px/s upward impulse
-    gravity: float = 1800.0       # px/s^2 downward
+    gravity: float = 1800.0  # px/s^2 downward
     max_fall_speed: float = 1200.0
 
     # Velocity
@@ -51,6 +52,57 @@ class Stickman:
 
     # Internal timing for 20fps collision map updates
     _collision_accum: float = 0.0
+
+    # Keyboard listener (use field default_factory to avoid mutable default)
+    _keyboard_listener: Optional[keyboard.Listener] = field(
+        default=None, init=False, repr=False
+    )
+
+    def __post_init__(self):
+        """Start global keyboard listener for this stickman"""
+        self.start_keyboard_listener()
+
+    def start_keyboard_listener(self):
+        """Start global keyboard listener (works regardless of focus)"""
+        if self._keyboard_listener is None:
+            self._keyboard_listener = keyboard.Listener(
+                on_press=self._on_press, on_release=self._on_release
+            )
+            self._keyboard_listener.start()
+
+    def stop_keyboard_listener(self):
+        """Stop the keyboard listener"""
+        if self._keyboard_listener:
+            self._keyboard_listener.stop()
+            self._keyboard_listener = None
+
+    def _on_press(self, key):
+        """Handle key press events"""
+        try:
+            if hasattr(key, "char") and key.char:
+                char = key.char.lower()
+
+                if char == "j":
+                    self.is_moving_left = True
+                elif char == "l":
+                    self.is_moving_right = True
+                elif char == "i":
+                    self.wants_jump = True
+        except AttributeError:
+            pass
+
+    def _on_release(self, key):
+        """Handle key release events"""
+        try:
+            if hasattr(key, "char") and key.char:
+                char = key.char.lower()
+
+                if char == "j":
+                    self.is_moving_left = False
+                elif char == "l":
+                    self.is_moving_right = False
+        except AttributeError:
+            pass
 
     def update(self, dt: float = DT) -> None:
         """
@@ -69,7 +121,7 @@ class Stickman:
             self.update_collision_map()
 
         # Physics step
-        self.apply_gravity(dt)
+        # self.apply_gravity(dt)
 
         # Jump request (only if on ground)
         if self.wants_jump:
@@ -201,7 +253,7 @@ class Stickman:
         target = x + dx
         # walk toward target in pixel steps
         cur = x
-        while (cur < target if step > 0 else cur > target):
+        while cur < target if step > 0 else cur > target:
             nxt = cur + step
             if self._aabb_collides(nxt, y):
                 return cur
@@ -213,7 +265,7 @@ class Stickman:
         step = 1 if dy > 0 else -1
         target = y + dy
         cur = y
-        while (cur < target if step > 0 else cur > target):
+        while cur < target if step > 0 else cur > target:
             nxt = cur + step
             if self._aabb_collides(x, nxt):
                 return cur
