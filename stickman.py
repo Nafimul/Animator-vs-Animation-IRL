@@ -10,7 +10,7 @@ from pynput import keyboard
 # Configurable performance knobs
 # ----------------------------
 TARGET_FPS: int = 60  # <<< change this instead of hardcoding "60fps"
-COLLISION_MAP_FPS: int = 20  # <<< change this instead of hardcoding "20fps"
+COLLISION_MAP_FPS: int = 5  # <<< change this instead of hardcoding "20fps"
 DT: float = 1.0 / TARGET_FPS
 COLLISION_MAP_DT: float = 1.0 / COLLISION_MAP_FPS
 
@@ -34,6 +34,7 @@ class Stickman:
     collision_map_y: int = 0  # Screen Y coordinate where collision map starts
     # Sprite (for overlay rendering)
     sprite_url: str = "assets/sprites/stickman_idle.png"
+    animation_frame: int = 0
 
     # Input flags (set these from your keyboard/controller code)
     is_moving_left: bool = False
@@ -94,6 +95,22 @@ class Stickman:
         except AttributeError:
             pass
 
+    def animate(self):
+        """Update sprite based on movement state (placeholder)"""
+        # This is a placeholder for animation logic.
+        # You can expand this to cycle through frames based on movement.
+        if self.is_moving_left or self.is_moving_right:
+            if self.animation_frame % 30 < 10:
+                self.sprite_url = "assets/sprites/stickman_run1.png"
+            elif self.animation_frame % 30 < 20:
+                self.sprite_url = "assets/sprites/stickman_run2.png"
+            elif self.animation_frame % 30 < 30:
+                self.sprite_url = "assets/sprites/stickman_run3.png"
+        else:
+            self.sprite_url = "assets/sprites/stickman_idle.png"
+
+        self.animation_frame += 3
+
     def _on_release(self, key):
         """Handle key release events"""
         try:
@@ -143,6 +160,7 @@ class Stickman:
 
         # Move + collide
         self._move_and_collide(dt)
+        self.animate()
 
     # -----------------------
     # Collision / world update
@@ -164,12 +182,9 @@ class Stickman:
 
     def try_jump(self) -> None:
         """Apply jump impulse if standing on solid ground."""
-        on_ground = self.is_on_ground()
-        print(f"Jump attempt: on_ground={on_ground}, collision_map={'exists' if self.collision_map is not None else 'None'}")
-        if on_ground:
+        if self.is_on_ground():
             vx, _vy = self.vel
             self.vel = (vx, -self.jump_velocity)
-            print(f"Jump applied! New vel: {self.vel}")
 
     # -----------------------
     # Movement / collision core

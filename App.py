@@ -36,15 +36,6 @@ class App:
         # Set up collision map provider so stickman can update it at 20fps
         self.stickman.collision_map_provider = screen_read.get_collision_map
 
-        # Get initial collision map
-        collision_map = screen_read.get_collision_map(self.stickman)
-        rgba_image = screen_read.bool_mask_to_rgba(collision_map)
-
-        color_image = screen_read.screenshot_to_numpy()
-        self.overlay.set_images(
-            [(self.stickman.sprite_url, self.stickman.pos[0], self.stickman.pos[1])]
-        )
-
         # Set up 60 FPS update timer for stickman
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_game)
@@ -56,16 +47,25 @@ class App:
             # Update stickman physics (collision map updated at 20fps internally)
             self.stickman.update()
 
-            # Update overlay with new stickman position
-            self.overlay.set_images(
-                [
-                    (
-                        self.stickman.sprite_url,
-                        int(self.stickman.pos[0]),
-                        int(self.stickman.pos[1]),
-                    )
-                ]
+            images = []
+
+            # if (self.stickman.collision_map is not None):
+            #     images.append(
+            #         (screen_read.bool_mask_to_rgba(self.stickman.collision_map),
+            #         int(self.stickman.collision_map_x),
+            #         int(self.stickman.collision_map_y))
+            #     )
+
+            images.append(
+                (
+                    self.stickman.sprite_url,
+                    int(self.stickman.pos[0]),
+                    int(self.stickman.pos[1]),
+                )
             )
+
+            # Update overlay with new stickman position
+            self.overlay.set_images(images)
 
     def start(self):
         """Start the application with global hotkey listener"""
@@ -73,7 +73,6 @@ class App:
         self.keyboard_listener = keyboard.Listener(on_press=self.on_press)
         self.keyboard_listener.start()
 
-        print("App started. Controls: J=Left, L=Right, I=Jump, Z=Exit")
 
         # Disable high DPI scaling to ensure exact pixel dimensions
         os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"
