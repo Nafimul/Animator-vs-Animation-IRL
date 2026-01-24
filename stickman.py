@@ -42,7 +42,7 @@ class Stickman:
 
     # Physics
     speed: float = 280.0  # horizontal speed px/s
-    jump_velocity: float = 10.0  # px/s upward impulse
+    jump_velocity: float = 500.0  # px/s upward impulse
     gravity: float = 1800.0  # px/s^2 downward
     max_fall_speed: float = 1200.0
 
@@ -164,9 +164,12 @@ class Stickman:
 
     def try_jump(self) -> None:
         """Apply jump impulse if standing on solid ground."""
-        if self.is_on_ground():
+        on_ground = self.is_on_ground()
+        print(f"Jump attempt: on_ground={on_ground}, collision_map={'exists' if self.collision_map is not None else 'None'}")
+        if on_ground:
             vx, _vy = self.vel
             self.vel = (vx, -self.jump_velocity)
+            print(f"Jump applied! New vel: {self.vel}")
 
     # -----------------------
     # Movement / collision core
