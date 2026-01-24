@@ -141,7 +141,7 @@ def get_most_common_color(
 
 def image_to_bool_mask(
     image,
-    target_color=(0, 0, 0),
+    target_color=None,
     always_background_colors=[(255, 72, 0)],  # color of the stickman
     hue_threshold=0.1,
     lightness_threshold=0.2,
@@ -170,7 +170,7 @@ def image_to_bool_mask(
     if target_color is None:
         target_color = get_most_common_color(
             image,
-            sample_rate=5,
+            sample_rate=10,  # Increased for faster detection
             hue_threshold=hue_threshold,
             lightness_threshold=lightness_threshold,
             saturation_threshold=saturation_threshold,
@@ -185,40 +185,70 @@ def image_to_bool_mask(
     # Initialize mask as all collision (True)
     mask = np.ones((H, W), dtype=bool)
 
-    # Convert image from BGR to RGB for processing
-    image_rgb = image[:, :, ::-1].copy()
+    # Convert image from BGR to RGB
+    image_rgb = image[:, :, ::-1].astype(np.float32) / 255.0
 
-    # Convert target color from BGR to RGB
-    target_rgb = (target_color[2], target_color[1], target_color[0])
+    # Vectorized color similarity check
+    def check_color_similarity_vectorized(target_bgr):
+        target_rgb = (
+            np.array([target_bgr[2], target_bgr[1], target_bgr[0]], dtype=np.float32)
+            / 255.0
+        )
 
-    # Check each pixel against target color
-    for y in range(H):
-        for x in range(W):
-            pixel = tuple(image_rgb[y, x])
+        # Convert entire image to HLS
+        r, g, b = image_rgb[:, :, 0], image_rgb[:, :, 1], image_rgb[:, :, 2]
 
-            # Check if similar to target color
-            if colors_are_similar(
-                pixel,
-                target_rgb,
-                hue_threshold,
-                lightness_threshold,
-                saturation_threshold,
-            ):
-                mask[y, x] = False
-                continue
+        # Compute HLS for entire image (vectorized)
+        maxc = np.maximum(np.maximum(r, g), b)
+        minc = np.minimum(np.minimum(r, g), b)
+        l = (maxc + minc) / 2.0
 
-            # Check if matches any always-background colors
-            for bg_color in always_background_colors:
-                bg_rgb = (bg_color[2], bg_color[1], bg_color[0])
-                if colors_are_similar(
-                    pixel,
-                    bg_rgb,
-                    hue_threshold,
-                    lightness_threshold,
-                    saturation_threshold,
-                ):
-                    mask[y, x] = False
-                    break
+        delta = maxc - minc
+        s = np.zeros_like(l)
+        mask_delta = delta > 0
+        s[mask_delta] = np.where(
+            l[mask_delta] <= 0.5,
+            delta[mask_delta] / (maxc[mask_delta] + minc[mask_delta]),
+            delta[mask_delta] / (2.0 - maxc[mask_delta] - minc[mask_delta]),
+        )
+
+        # Compute hue
+        h = np.zeros_like(l)
+        rc = np.where(mask_delta, (maxc - r) / delta, 0)
+        gc = np.where(mask_delta, (maxc - g) / delta, 0)
+        bc = np.where(mask_delta, (maxc - b) / delta, 0)
+
+        h = np.where(r == maxc, bc - gc, h)
+        h = np.where(g == maxc, 2.0 + rc - bc, h)
+        h = np.where(b == maxc, 4.0 + gc - rc, h)
+        h = (h / 6.0) % 1.0
+
+        # Convert target to HLS
+        t_h, t_l, t_s = colorsys.rgb_to_hls(target_rgb[0], target_rgb[1], target_rgb[2])
+
+        # Check similarity
+        if t_s < 0.1 or np.mean(s) < 0.1:
+            # Low saturation - only check lightness
+            return np.abs(l - t_l) < lightness_threshold
+        else:
+            # Check hue, lightness, saturation
+            hue_diff = np.abs(h - t_h)
+            hue_diff = np.minimum(hue_diff, 1.0 - hue_diff)  # Wrap around
+
+            return (
+                (hue_diff < hue_threshold)
+                & (np.abs(l - t_l) < lightness_threshold)
+                & (np.abs(s - t_s) < saturation_threshold)
+            )
+
+    # Mark target color as background
+    is_background = check_color_similarity_vectorized(target_color)
+    mask[is_background] = False
+
+    # Mark always-background colors
+    for bg_color in always_background_colors:
+        is_background = check_color_similarity_vectorized(bg_color)
+        mask[is_background] = False
 
     return mask
 

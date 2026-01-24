@@ -45,7 +45,7 @@ class Stickman:
     speed: float = 280.0  # horizontal speed px/s
     jump_velocity: float = 500.0  # px/s upward impulse
     gravity: float = 1800.0  # px/s^2 downward
-    max_fall_speed: float = 1200.0
+    max_fall_speed: float = 500.0
 
     # Velocity
     vel: Vec2 = (0.0, 0.0)
@@ -99,6 +99,13 @@ class Stickman:
         """Update sprite based on movement state (placeholder)"""
         # This is a placeholder for animation logic.
         # You can expand this to cycle through frames based on movement.
+        if self.wants_jump:
+            if self.animation_frame % 30 < 10:
+                self.sprite_url = "assets/sprites/stickman_jump1.png"
+            elif self.animation_frame % 30 < 20:
+                self.sprite_url = "assets/sprites/stickman_jump2.png"
+            elif self.animation_frame % 30 < 30:
+                self.sprite_url = "assets/sprites/stickman_jump3.png"
         if self.is_moving_left or self.is_moving_right:
             if self.animation_frame % 30 < 10:
                 self.sprite_url = "assets/sprites/stickman_run1.png"
