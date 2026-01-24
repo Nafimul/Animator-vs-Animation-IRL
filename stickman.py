@@ -4,6 +4,10 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional, Tuple
 import numpy as np
 from pynput import keyboard, mouse
+import sound
+import time
+import voice_detect
+import threading
 
 
 # ----------------------------
@@ -44,6 +48,13 @@ class Stickman:
     is_punching: bool = False
     punch_direction: str = "horizontal"  # "horizontal", "up", or "down"
     _punch_timer: float = 0.0  # Timer to keep punch animation visible
+    _walk_sound_counter: int = 0  # Counter to play walk sound periodically
+    
+    # Voice detection threading
+    _voice_thread: Optional[threading.Thread] = field(default=None, init=False, repr=False)
+    _is_listening: bool = field(default=False, init=False, repr=False)
+    _hame_detected: bool = field(default=False, init=False, repr=False)
+    _loud_sound_detected: bool = field(default=False, init=False, repr=False)
 
     # Physics
     speed: float = 280.0  # horizontal speed px/s
@@ -69,6 +80,7 @@ class Stickman:
     def __post_init__(self):
         """Start global keyboard listener for this stickman"""
         self.start_keyboard_listener()
+        self.start_voice_listener()
 
     def start_keyboard_listener(self):
         """Start global keyboard listener (works regardless of focus)"""
@@ -83,6 +95,40 @@ class Stickman:
         if self._keyboard_listener:
             self._keyboard_listener.stop()
             self._keyboard_listener = None
+        self.stop_voice_listener()
+
+    def start_voice_listener(self):
+        """Start continuous voice detection in background thread"""
+        if self._voice_thread is None:
+            self._is_listening = True
+            self._voice_thread = threading.Thread(target=self._voice_detection_loop, daemon=True)
+            self._voice_thread.start()
+
+    def _voice_detection_loop(self):
+        """Runs in background thread - continuously listens for voice commands"""
+        while self._is_listening:
+            try:
+                # Check for "hame" word
+                if voice_detect.detect_word_hame(duration=2, similarity_threshold=0.0001):
+                    self._hame_detected = True
+            except Exception:
+                pass
+            
+            try:
+                # Check for loud sound
+                if voice_detect.detect_loud_sound(threshold=0.02, duration=0.1):
+                    self._loud_sound_detected = True
+            except Exception:
+                pass
+            
+            time.sleep(0.05)  # Small delay to prevent CPU overuse
+
+    def stop_voice_listener(self):
+        """Stop the voice detection thread"""
+        self._is_listening = False
+        if self._voice_thread:
+            self._voice_thread.join(timeout=2.0)
+            self._voice_thread = None
 
     def _on_press(self, key):
         """Handle key press events"""
@@ -161,12 +207,23 @@ class Stickman:
             mouse_controller.click(mouse.Button.left, 1)
             mouse_controller.position = original_pos
 
+            # Play punch sound
+            sound.play_sound("assets/sounds/punch.wav", wait=False)
+
             # Set punching flag and timer (animation will last ~0.3 seconds)
             self.is_punching = True
             self._punch_timer = 0.3
 
         except Exception as e:
             print(f"Error punching: {e}")
+
+    def kamehameha(self):
+        """Execute kamehameha attack"""
+        print("🔵 KAMEHAMEHA!!!")
+
+    def fly(self):
+        """Make the stickman fly"""
+        print("🚀 Flying!")
 
     def animate(self):
         """Update sprite based on movement state (placeholder)"""
@@ -269,6 +326,15 @@ class Stickman:
         vx = desired_vx
         self.vel = (vx, vy)
 
+        # Play walk sound periodically while moving on ground
+        if (self.is_moving_left or self.is_moving_right) and self.is_on_ground():
+            self._walk_sound_counter += 1
+            if self._walk_sound_counter >= 15:  # Play every ~15 frames (quarter second)
+                sound.play_sound("assets/sounds/walking_real.mp3", wait=False)
+                self._walk_sound_counter = 0
+        else:
+            self._walk_sound_counter = 0
+
         # Move + collide
         self._move_and_collide(dt)
 
@@ -278,6 +344,15 @@ class Stickman:
             if self._punch_timer <= 0:
                 self.is_punching = False
                 self._punch_timer = 0.0
+
+        # Check voice detection flags (non-blocking, just reads flags set by background thread)
+        if self._hame_detected:
+            self.kamehameha()
+            self._hame_detected = False  # Reset flag
+        
+        if self._loud_sound_detected:
+            self.fly()
+            self._loud_sound_detected = False  # Reset flag
 
         self.animate()
 
@@ -304,6 +379,8 @@ class Stickman:
         if self.is_on_ground():
             vx, _vy = self.vel
             self.vel = (vx, -self.jump_velocity)
+            # Play jump sound
+            sound.play_sound("assets/sounds/jump.wav", wait=False)
 
     # -----------------------
     # Movement / collision core

@@ -109,7 +109,7 @@ class App:
                         mixer.music.load(audio_stream)
                         mixer.music.play()
 
-                        # Wait for the audio to finish playing
+                        # jljit for the audio to finish playing
                         while mixer.music.get_busy():
                             time.sleep(0.1)
                     except Exception as e:
