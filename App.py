@@ -56,11 +56,13 @@ class App:
             #         int(self.stickman.collision_map_y))
             #     )
 
+            # Tuple format: (image, x, y, flip_horizontal)
             images.append(
                 (
                     self.stickman.sprite_url,
                     int(self.stickman.pos[0]),
                     int(self.stickman.pos[1]),
+                    not self.stickman.facing_right,  # Flip when facing left
                 )
             )
 
@@ -72,7 +74,6 @@ class App:
         # Set up global keyboard listener (works regardless of focus)
         self.keyboard_listener = keyboard.Listener(on_press=self.on_press)
         self.keyboard_listener.start()
-
 
         # Disable high DPI scaling to ensure exact pixel dimensions
         os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "0"

@@ -48,6 +48,7 @@ class OverlayImage:
     pixmap: QPixmap
     x: int
     y: int
+    flip_horizontal: bool = False
 
 
 class Overlay(QWidget):
@@ -107,7 +108,7 @@ class Overlay(QWidget):
     # -------------------
     def set_images(
         self,
-        items: Iterable[Tuple[ImageSource, int, int]],
+        items: Iterable[Tuple[ImageSource, int, int, ...]],
         *,
         assume_numpy_format: str = "BGRA",
     ) -> None:
@@ -115,20 +116,27 @@ class Overlay(QWidget):
         Replace the current image list.
 
         Args:
-            items: iterable of (image_source, x, y)
+            items: iterable of (image_source, x, y) or (image_source, x, y, flip_horizontal)
                 image_source can be:
                   - URL string (http/https/file)
                   - numpy array shape (H,W,3) or (H,W,4), dtype uint8
                   - QPixmap
+                flip_horizontal: optional bool, whether to flip the image horizontally
             assume_numpy_format:
                 When numpy has 4 channels, interpret it as "BGRA" (common from mss)
                 or "RGBA". For 3 channels, assumes "RGB".
         """
         converted: List[OverlayImage] = []
-        for src, x, y in items:
+        for item in items:
+            if len(item) == 3:
+                src, x, y = item
+                flip = False
+            else:
+                src, x, y, flip = item
+
             pm = self._to_pixmap(src, assume_numpy_format=assume_numpy_format)
             if not pm.isNull():
-                converted.append(OverlayImage(pm, int(x), int(y)))
+                converted.append(OverlayImage(pm, int(x), int(y), flip))
 
         self.images = converted
         self.update()
@@ -153,7 +161,15 @@ class Overlay(QWidget):
 
         # Draw each pixmap at its coordinates
         for it in self.images:
-            painter.drawPixmap(it.x, it.y, it.pixmap)
+            if it.flip_horizontal:
+                # Flip horizontally by transforming the painter
+                painter.save()
+                painter.translate(it.x + it.pixmap.width(), it.y)
+                painter.scale(-1, 1)
+                painter.drawPixmap(0, 0, it.pixmap)
+                painter.restore()
+            else:
+                painter.drawPixmap(it.x, it.y, it.pixmap)
 
         painter.end()
 

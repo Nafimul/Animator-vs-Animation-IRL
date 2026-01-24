@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional, Tuple
 import numpy as np
-from pynput import keyboard
+from pynput import keyboard, mouse
 
 
 # ----------------------------
@@ -40,6 +40,7 @@ class Stickman:
     is_moving_left: bool = False
     is_moving_right: bool = False
     wants_jump: bool = False
+    facing_right: bool = True  # Track which direction stickman is facing
 
     # Physics
     speed: float = 280.0  # horizontal speed px/s
@@ -92,8 +93,32 @@ class Stickman:
                     self.is_moving_right = True
                 elif char == "i":
                     self.wants_jump = True
+                elif char == "a":
+                    self.teleport_to_mouse()
         except AttributeError:
             pass
+
+    def teleport_to_mouse(self):
+        """Teleport stickman to the left of the mouse cursor"""
+        try:
+            # Get current mouse position
+            mouse_controller = mouse.Controller()
+            mouse_x, mouse_y = mouse_controller.position
+
+            # Teleport to the left of the mouse (50 pixels to the left)
+            offset = 50
+            new_x = mouse_x - offset - self.width
+            new_y = mouse_y - self.height // 2  # Center vertically on mouse
+
+            # Clamp to screen boundaries
+            new_x = max(0, min(1920 - self.width, new_x))
+            new_y = max(0, min(1200 - self.height, new_y))
+
+            self.pos = (float(new_x), float(new_y))
+            # Reset velocity when teleporting
+            self.vel = (0.0, 0.0)
+        except Exception as e:
+            print(f"Error teleporting to mouse: {e}")
 
     def animate(self):
         """Update sprite based on movement state (placeholder)"""
@@ -160,8 +185,10 @@ class Stickman:
         desired_vx = 0.0
         if self.is_moving_left and not self.is_moving_right:
             desired_vx = -self.speed
+            self.facing_right = False  # Face left when moving left
         elif self.is_moving_right and not self.is_moving_left:
             desired_vx = self.speed
+            self.facing_right = True  # Face right when moving right
         vx = desired_vx
         self.vel = (vx, vy)
 

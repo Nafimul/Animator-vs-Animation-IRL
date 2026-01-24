@@ -27,7 +27,7 @@ def screenshot_to_numpy(monitor=1, region=None):
 
 
 def colors_are_similar(
-    color1, color2, hue_threshold=0.1, lightness_threshold=0.2, saturation_threshold=0.3
+    color1, color2, hue_threshold, lightness_threshold, saturation_threshold
 ):
     """
         Check if two colors are similar using HLS color space.
@@ -73,7 +73,7 @@ def get_most_common_color(
     image,
     sample_rate=5,
     hue_threshold=0.1,
-    lightness_threshold=0.2,
+    lightness_threshold=0.5,
     saturation_threshold=0.3,
 ):
     """
@@ -105,14 +105,11 @@ def get_most_common_color(
     if not sampled_pixels:
         return (0, 0, 0)
 
-    # Group similar colors together
-    color_groups = []  # List of (representative_color, count)
+    color_groups = []
 
     for pixel in sampled_pixels:
-        # Convert BGR to RGB for comparison
         pixel_rgb = (pixel[2], pixel[1], pixel[0])
 
-        # Find existing group that this pixel matches
         found_group = False
         for i, (group_color, count) in enumerate(color_groups):
             group_rgb = (group_color[2], group_color[1], group_color[0])
@@ -127,16 +124,14 @@ def get_most_common_color(
                 found_group = True
                 break
 
-        # If no matching group, create a new one
         if not found_group:
             color_groups.append((pixel, 1))
 
-    # Find the group with the most pixels
     if not color_groups:
         return (0, 0, 0)
 
     most_common = max(color_groups, key=lambda x: x[1])
-    return most_common[0]  # Return BGR tuple
+    return most_common[0]
 
 
 def image_to_bool_mask(
@@ -144,8 +139,8 @@ def image_to_bool_mask(
     target_color=None,
     always_background_colors=[(255, 72, 0)],  # color of the stickman
     hue_threshold=0.1,
-    lightness_threshold=0.2,
-    saturation_threshold=0.3,
+    lightness_threshold=0.1,
+    saturation_threshold=0.1,
 ):
     """
     Creates a collision mask where colors similar to target_color are background (False),
