@@ -219,6 +219,16 @@ class Stickman:
                 y = self._resolve_vertical(x, y, dy)
                 vy = 0.0
 
+        # Clamp to screen boundaries (0, 0) to (1920, 1200)
+        x = max(0, min(1920 - self.width, x))
+        y = max(0, min(1200 - self.height, y))
+
+        # Stop velocity if hitting screen edge
+        if x == 0 or x == 1920 - self.width:
+            vx = 0.0
+        if y == 0 or y == 1200 - self.height:
+            vy = 0.0
+
         self.pos = (x, y)
         self.vel = (vx, vy)
 
@@ -274,6 +284,10 @@ class Stickman:
         right_c = min(W, right)
         bottom_c = min(H, bottom)
 
+        # Safety check: ensure we have a valid region
+        if right_c <= left_c or bottom_c <= top_c:
+            return False
+
         region = cm[top_c:bottom_c, left_c:right_c]
         return bool(region.any())
 
@@ -291,7 +305,9 @@ class Stickman:
             cur = nxt
         return cur
 
-    def _aabb_collides_ignore_bottom(self, x: float, y: float, ignore_rows: int = 5) -> bool:
+    def _aabb_collides_ignore_bottom(
+        self, x: float, y: float, ignore_rows: int = 5
+    ) -> bool:
         """
         Like _aabb_collides but ignores the bottom N rows of the stickman's AABB.
         """

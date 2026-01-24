@@ -313,12 +313,15 @@ def get_collision_map(stickman):
     stickman_local_y = int(y - top)
 
     # Clear collision in the stickman's area (make it background)
+    # Clamp to valid bounds within the collision map
+    stickman_left = max(0, stickman_local_x)
+    stickman_top = max(0, stickman_local_y)
     stickman_right = min(width, stickman_local_x + stickman.width)
     stickman_bottom = min(height, stickman_local_y + stickman.height)
 
-    if 0 <= stickman_local_x < width and 0 <= stickman_local_y < height:
-        collision_mask[
-            stickman_local_y:stickman_bottom, stickman_local_x:stickman_right
-        ] = False
+    if stickman_right > stickman_left and stickman_bottom > stickman_top:
+        collision_mask[stickman_top:stickman_bottom, stickman_left:stickman_right] = (
+            False
+        )
 
     return collision_mask
