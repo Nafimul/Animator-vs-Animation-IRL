@@ -20,7 +20,7 @@ class SignalHandler(QObject):
 
 
 class App:
-    def __init__(self, use_apis=True):
+    def __init__(self, use_apis=False):
         self.running = True
         self.use_apis = use_apis
         self.overlay = None
@@ -97,6 +97,9 @@ class App:
 
                 if comment is None:
                     print("Error: Received no response from Gemini")
+                elif "Error" in str(comment) or "error" in str(comment):
+                    # Don't speak error messages, just print them
+                    print(f"\n🤖 Gemini error: {comment}")
                 else:
                     print(f"\n🤖 Gemini says: {comment}")
 
@@ -115,8 +118,8 @@ class App:
             except Exception as e:
                 print(f"Error getting Gemini comment: {e}")
 
-            # Wait a bit before getting next comment
-            time.sleep(5)
+            # Wait 60 seconds before next API call to avoid overloading
+            time.sleep(60)
 
     def start(self):
         """Start the application with global hotkey listener"""

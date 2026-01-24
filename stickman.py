@@ -41,6 +41,9 @@ class Stickman:
     is_moving_right: bool = False
     wants_jump: bool = False
     facing_right: bool = True  # Track which direction stickman is facing
+    is_punching: bool = False
+    punch_direction: str = "horizontal"  # "horizontal", "up", or "down"
+    _punch_timer: float = 0.0  # Timer to keep punch animation visible
 
     # Physics
     speed: float = 280.0  # horizontal speed px/s
@@ -95,6 +98,10 @@ class Stickman:
                     self.wants_jump = True
                 elif char == "a":
                     self.teleport_to_mouse()
+                elif char == "s":
+                    self.punch()
+                elif char == "k":
+                    self.punch_direction = "down"
         except AttributeError:
             pass
 
@@ -120,18 +127,83 @@ class Stickman:
         except Exception as e:
             print(f"Error teleporting to mouse: {e}")
 
+    def punch(self):
+        """Move mouse to punch location, click, and return mouse to original position"""
+        try:
+            mouse_controller = mouse.Controller()
+            # Save original mouse position
+            original_pos = mouse_controller.position
+
+            # Calculate stickman center
+            x, y = self.pos
+            center_x = x + self.width // 2
+            center_y = y + self.height // 2
+
+            pixels_in_direction = 25
+
+            # Calculate target position based on punch direction
+            if self.punch_direction == "up":
+                target_x = int(center_x)
+                target_y = int(center_y - pixels_in_direction)
+            elif self.punch_direction == "down":
+                target_x = int(center_x)
+                target_y = int(center_y + pixels_in_direction)
+            else:  # horizontal (left or right based on facing_right)
+                if self.facing_right:
+                    target_x = int(center_x + pixels_in_direction)
+                else:
+                    target_x = int(center_x - pixels_in_direction)
+                target_y = int(center_y)
+
+            # Move mouse to target, click, and return
+            mouse_controller.position = (target_x, target_y)
+            mouse_controller.click(mouse.Button.left, 1)
+            mouse_controller.position = original_pos
+
+            # Set punching flag and timer (animation will last ~0.3 seconds)
+            self.is_punching = True
+            self._punch_timer = 0.3
+
+        except Exception as e:
+            print(f"Error punching: {e}")
+
     def animate(self):
         """Update sprite based on movement state (placeholder)"""
         # This is a placeholder for animation logic.
         # You can expand this to cycle through frames based on movement.
-        if self.wants_jump:
+
+        # Punching animation takes priority
+        if self.is_punching:
+            # Different animations for different punch directions
+            if self.punch_direction == "up":
+                if self.animation_frame % 30 < 10:
+                    self.sprite_url = "assets/sprites/stickman_punch_up1.png"
+                elif self.animation_frame % 30 < 20:
+                    self.sprite_url = "assets/sprites/stickman_punch_up2.png"
+                else:
+                    self.sprite_url = "assets/sprites/stickman_punch_up3.png"
+            elif self.punch_direction == "down":
+                if self.animation_frame % 30 < 10:
+                    self.sprite_url = "assets/sprites/stickman_punch_down1.png"
+                elif self.animation_frame % 30 < 20:
+                    self.sprite_url = "assets/sprites/stickman_punch_down2.png"
+                else:
+                    self.sprite_url = "assets/sprites/stickman_punch_down3.png"
+            else:  # horizontal punch
+                if self.animation_frame % 30 < 10:
+                    self.sprite_url = "assets/sprites/stickman_punch1.png"
+                elif self.animation_frame % 30 < 20:
+                    self.sprite_url = "assets/sprites/stickman_punch2.png"
+                else:
+                    self.sprite_url = "assets/sprites/stickman_punch3.png"
+        elif self.wants_jump:
             if self.animation_frame % 30 < 10:
                 self.sprite_url = "assets/sprites/stickman_jump1.png"
             elif self.animation_frame % 30 < 20:
                 self.sprite_url = "assets/sprites/stickman_jump2.png"
             elif self.animation_frame % 30 < 30:
                 self.sprite_url = "assets/sprites/stickman_jump3.png"
-        if self.is_moving_left or self.is_moving_right:
+        elif self.is_moving_left or self.is_moving_right:
             if self.animation_frame % 30 < 10:
                 self.sprite_url = "assets/sprites/stickman_run1.png"
             elif self.animation_frame % 30 < 20:
@@ -194,6 +266,14 @@ class Stickman:
 
         # Move + collide
         self._move_and_collide(dt)
+
+        # Update punch timer
+        if self._punch_timer > 0:
+            self._punch_timer -= dt
+            if self._punch_timer <= 0:
+                self.is_punching = False
+                self._punch_timer = 0.0
+
         self.animate()
 
     # -----------------------
