@@ -27,8 +27,11 @@ class Stickman:
     height: int = 30
 
     # Collision world (True = solid)
-    collision_map: Optional[CollisionMap] = None
-
+    collision_map: Optional[CollisionMap] = (
+        None  # Location of the collision map in screen coordinates
+    )
+    collision_map_x: int = 0  # Screen X coordinate where collision map starts
+    collision_map_y: int = 0  # Screen Y coordinate where collision map starts
     # Sprite (for overlay rendering)
     sprite_url: str = "assets/sprites/stickman_idle.png"
 
@@ -39,7 +42,7 @@ class Stickman:
 
     # Physics
     speed: float = 280.0  # horizontal speed px/s
-    jump_velocity: float = 520.0  # px/s upward impulse
+    jump_velocity: float = 10.0  # px/s upward impulse
     gravity: float = 1800.0  # px/s^2 downward
     max_fall_speed: float = 1200.0
 
@@ -121,7 +124,7 @@ class Stickman:
             self.update_collision_map()
 
         # Physics step
-        # self.apply_gravity(dt)
+        self.apply_gravity(dt)
 
         # Jump request (only if on ground)
         if self.wants_jump:
@@ -147,7 +150,7 @@ class Stickman:
     def update_collision_map(self) -> None:
         """Refresh the collision_map (called ~20fps)."""
         if self.collision_map_provider is not None:
-            self.collision_map = self.collision_map_provider()
+            self.collision_map = self.collision_map_provider(self)
 
     # -----------------------
     # Physics helpers
@@ -223,6 +226,7 @@ class Stickman:
         """
         Checks whether the AABB at (x,y,width,height) overlaps any True pixel.
         collision_map is indexed [row=y, col=x].
+        Accounts for collision_map_x and collision_map_y offsets.
         """
         cm = self.collision_map
         if cm is None:
@@ -230,10 +234,11 @@ class Stickman:
 
         H, W = cm.shape[:2]
 
-        left = int(np.floor(x))
-        top = int(np.floor(y))
-        right = int(np.ceil(x + self.width))
-        bottom = int(np.ceil(y + self.height))
+        # Convert screen coordinates to collision map local coordinates
+        left = int(np.floor(x)) - self.collision_map_x
+        top = int(np.floor(y)) - self.collision_map_y
+        right = int(np.ceil(x + self.width)) - self.collision_map_x
+        bottom = int(np.ceil(y + self.height)) - self.collision_map_y
 
         # Clamp to map bounds
         if right <= 0 or bottom <= 0 or left >= W or top >= H:

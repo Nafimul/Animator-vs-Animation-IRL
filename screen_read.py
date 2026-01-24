@@ -2,21 +2,23 @@ import mss
 import numpy as np
 
 
-def screenshot_to_numpy(monitor=1):
+def screenshot_to_numpy(monitor=1, region=None):
     """
     Takes a screenshot of the specified monitor and returns it as a NumPy array.
 
     Args:
         monitor (int): Monitor index (1 = primary monitor)
+        region (dict): Optional region dict with 'left', 'top', 'width', 'height'
 
     Returns:
         np.ndarray: Screenshot image in BGRA format (H, W, 4)
     """
     with mss.mss() as sct:
-        # Get the monitor info
-        mon = sct.monitors[monitor]
-        # Force exact dimensions: 1920x1200
-        capture_region = {"top": 0, "left": 0, "width": 1920, "height": 1200}
+        # Use custom region or default to full screen
+        if region is None:
+            capture_region = {"top": 0, "left": 0, "width": 1920, "height": 1200}
+        else:
+            capture_region = region
         screenshot = sct.grab(capture_region)
         img = np.array(screenshot)
         return img
@@ -77,5 +79,35 @@ def bool_mask_to_rgba(mask):
     return rgba
 
 
-def get_collision_map():
-    return image_to_bool_mask(screenshot_to_numpy())
+def get_collision_map(stickman):
+    """
+    Get collision map for a region around the stickman.
+
+    Args:
+        stickman: Stickman object with pos, width, height attributes
+
+    Returns:
+        np.ndarray: Boolean collision map (H, W) for the region
+    """
+    # Define capture region: 100 pixels padding around stickman
+    padding = 100
+    x, y = stickman.pos
+
+    # Calculate region bounds with padding
+    left = int(max(0, x - padding))
+    top = int(max(0, y - padding))
+    right = int(min(1920, x + stickman.width + padding))
+    bottom = int(min(1200, y + stickman.height + padding))
+
+    width = right - left
+    height = bottom - top
+
+    # Store the collision map origin in the stickman
+    stickman.collision_map_x = left
+    stickman.collision_map_y = top
+
+    # Capture only the region around the stickman
+    region = {"left": left, "top": top, "width": width, "height": height}
+    screenshot = screenshot_to_numpy(region=region)
+
+    return image_to_bool_mask(screenshot)

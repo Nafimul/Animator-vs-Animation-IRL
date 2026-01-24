@@ -36,8 +36,8 @@ class App:
         # Set up collision map provider so stickman can update it at 20fps
         self.stickman.collision_map_provider = screen_read.get_collision_map
 
-        # Get collision map and print dimensions for debugging
-        collision_map = screen_read.get_collision_map()
+        # Get initial collision map
+        collision_map = screen_read.get_collision_map(self.stickman)
         rgba_image = screen_read.bool_mask_to_rgba(collision_map)
 
         color_image = screen_read.screenshot_to_numpy()
