@@ -96,6 +96,7 @@ class Stickman:
                     self.is_moving_right = True
                 elif char == "i":
                     self.wants_jump = True
+                    self.punch_direction = "up"
                 elif char == "a":
                     self.teleport_to_mouse()
                 elif char == "s":
@@ -175,7 +176,7 @@ class Stickman:
         # Punching animation takes priority
         if self.is_punching:
             # Different animations for different punch directions
-            if self.punch_direction == "up":
+            if self.wants_jump:
                 if self.animation_frame % 30 < 10:
                     self.sprite_url = "assets/sprites/stickman_punch_up1.png"
                 elif self.animation_frame % 30 < 20:
@@ -225,6 +226,10 @@ class Stickman:
                     self.is_moving_left = False
                 elif char == "l":
                     self.is_moving_right = False
+                elif char == "k":
+                    self.punch_direction = "horizontal"  # reset to default
+                elif char == "i":
+                    self.punch_direction = "horizontal"  # reset to default
         except AttributeError:
             pass
 
