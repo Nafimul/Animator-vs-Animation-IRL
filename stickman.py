@@ -278,10 +278,42 @@ class Stickman:
         cur = x
         while cur < target if step > 0 else cur > target:
             nxt = cur + step
-            if self._aabb_collides(nxt, y):
+            # Check collision but ignore bottom 5 rows
+            if self._aabb_collides_ignore_bottom(nxt, y, ignore_rows=5):
                 return cur
             cur = nxt
         return cur
+
+    def _aabb_collides_ignore_bottom(self, x: float, y: float, ignore_rows: int = 5) -> bool:
+        """
+        Like _aabb_collides but ignores the bottom N rows of the stickman's AABB.
+        """
+        cm = self.collision_map
+        if cm is None:
+            return False
+
+        H, W = cm.shape[:2]
+
+        # Convert screen coordinates to collision map local coordinates
+        left = int(np.floor(x)) - self.collision_map_x
+        top = int(np.floor(y)) - self.collision_map_y
+        right = int(np.ceil(x + self.width)) - self.collision_map_x
+        bottom = int(np.ceil(y + self.height)) - self.collision_map_y - ignore_rows
+
+        # Clamp to map bounds
+        if right <= 0 or bottom <= 0 or left >= W or top >= H:
+            return False
+
+        left_c = max(0, left)
+        top_c = max(0, top)
+        right_c = min(W, right)
+        bottom_c = min(H, bottom)
+
+        if bottom_c <= top_c:  # No rows left to check after ignoring bottom
+            return False
+
+        region = cm[top_c:bottom_c, left_c:right_c]
+        return bool(region.any())
 
     def _resolve_vertical(self, x: float, y: float, dy: float) -> float:
         """Move 1px steps until blocked (simple, robust)."""
