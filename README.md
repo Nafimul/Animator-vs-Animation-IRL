@@ -24,12 +24,6 @@ A 24 hour hackathon project where a stickman is put on a transparent window on t
 2. **Install Python dependencies:**
    ```bash
    pip install -r requirements.txt
-   ```
-   Or use the provided batch file (creates venv automatically):
-   ```bash
-   start.bat
-   ```
-   *Note: start.bat is optional - you can manually create a venv and install requirements*
 
 3. **Set up API keys:**
    - Create a `.env` file in the project root
@@ -37,7 +31,7 @@ A 24 hour hackathon project where a stickman is put on a transparent window on t
      ```
      ELEVENLABS_API_KEY=your_elevenlabs_key_here
      GOOGLE_API_KEY=your_google_genai_key_here
-     ```
+     ```z
 
 4. **Run the application:**
    ```bash

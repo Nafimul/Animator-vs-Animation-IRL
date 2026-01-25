@@ -29,7 +29,6 @@ class App:
         self.qt_app = None
         self.stickman = None
         self.gemini_thread = None
-
     def stuff_i_understand(self):
         screen_geometry = QRect(0, 0, 1920, 1200)
 
