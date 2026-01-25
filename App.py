@@ -20,7 +20,7 @@ class SignalHandler(QObject):
 
 
 class App:
-    def __init__(self, use_apis=False):
+    def __init__(self, use_apis=True):
         self.running = True
         self.use_apis = use_apis
         self.overlay = None
@@ -98,7 +98,7 @@ class App:
                     not self.stickman.facing_right,  # Flip when facing left
                 )
             )
-            
+
             # Update overlay with new stickman position
             self.overlay.set_images(images)
 
