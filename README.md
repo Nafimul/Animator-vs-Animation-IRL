@@ -5,3 +5,5 @@ A  24 hour hackathon project where a stickman is put on a transparent window on 
 stickman animation based off of the one by Angelina at https://www.pngitem.com/middle/ThbJJm_stickman-fight-sprite-sheet-hd-png-download/
 
 walking sound effect by freesound_community at https://pixabay.com/users/freesound_community-46691455/ on pixabay
+
+Fire Crackling Sounds sound effect by DRAGON-STUDIO at https://pixabay.com/sound-effects/nature-fire-crackling-sounds-427410/ on pixabay

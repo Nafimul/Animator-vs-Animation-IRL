@@ -71,20 +71,17 @@ def colors_are_similar(
 
 def get_most_common_color(
     image,
-    sample_rate=5,
-    hue_threshold=0.1,
-    lightness_threshold=0.5,
-    saturation_threshold=0.3,
+    sample_rate=15,  # Increased from 5 to 15 for better performance
+    color_distance_threshold=50,  # RGB distance threshold (0-255 scale)
 ):
     """
     Find the most common color in the image by grouping similar colors together.
+    Optimized version using simple RGB distance instead of HLS conversion.
 
     Args:
         image: numpy array (H,W,3) or (H,W,4) uint8 in BGR or BGRA format
-        sample_rate: Only check every Nth pixel for performance (default 5)
-        hue_threshold: Maximum hue difference for grouping similar colors
-        lightness_threshold: Maximum lightness difference for grouping
-        saturation_threshold: Maximum saturation difference for grouping
+        sample_rate: Only check every Nth pixel for performance (default 15)
+        color_distance_threshold: Maximum RGB distance for grouping colors (default 50)
 
     Returns:
         (B, G, R) tuple of the most common color
@@ -95,7 +92,7 @@ def get_most_common_color(
 
     H, W = image.shape[:2]
 
-    # Sample pixels for performance
+    # Sample pixels for performance (much more aggressive sampling)
     sampled_pixels = []
     for y in range(0, H, sample_rate):
         for x in range(0, W, sample_rate):
@@ -105,21 +102,20 @@ def get_most_common_color(
     if not sampled_pixels:
         return (0, 0, 0)
 
+    # Fast color grouping using RGB distance instead of HLS
     color_groups = []
+    threshold_sq = color_distance_threshold**2  # Use squared distance to avoid sqrt
 
     for pixel in sampled_pixels:
-        pixel_rgb = (pixel[2], pixel[1], pixel[0])
-
         found_group = False
         for i, (group_color, count) in enumerate(color_groups):
-            group_rgb = (group_color[2], group_color[1], group_color[0])
-            if colors_are_similar(
-                pixel_rgb,
-                group_rgb,
-                hue_threshold,
-                lightness_threshold,
-                saturation_threshold,
-            ):
+            # Calculate squared RGB distance (faster than HLS conversion)
+            dist_sq = (
+                (pixel[0] - group_color[0]) ** 2
+                + (pixel[1] - group_color[1]) ** 2
+                + (pixel[2] - group_color[2]) ** 2
+            )
+            if dist_sq <= threshold_sq:
                 color_groups[i] = (group_color, count + 1)
                 found_group = True
                 break
@@ -137,7 +133,7 @@ def get_most_common_color(
 def image_to_bool_mask(
     image,
     target_color=None,
-    always_background_colors=[(255, 72, 0)],  # color of the stickman
+    always_background_colors=[(255, 72, 0), (0,141,255), (186,224,255)],  # color of the stickman
     hue_threshold=0.1,
     lightness_threshold=0.1,
     saturation_threshold=0.1,
@@ -165,10 +161,7 @@ def image_to_bool_mask(
     if target_color is None:
         target_color = get_most_common_color(
             image,
-            sample_rate=10,  # Increased for faster detection
-            hue_threshold=hue_threshold,
-            lightness_threshold=lightness_threshold,
-            saturation_threshold=saturation_threshold,
+            sample_rate=15,  # Use default sample rate
         )
 
     # If BGRA or RGBA, drop alpha

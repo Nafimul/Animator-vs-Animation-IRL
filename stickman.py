@@ -18,6 +18,12 @@ COLLISION_MAP_FPS: int = 5  # <<< change this instead of hardcoding "20fps"
 DT: float = 1.0 / TARGET_FPS
 COLLISION_MAP_DT: float = 1.0 / COLLISION_MAP_FPS
 
+# Flying control
+ENABLE_E_FOR_FLYING: bool = True  # <<< Set to False to disable 'd' key for flying
+ENABLE_R_FOR_KAMEHAMEHA: bool = (
+    True  # <<< Set to False to disable 'r' key for kamehameha
+)
+
 
 Vec2 = Tuple[float, float]
 CollisionMap = np.ndarray  # expected shape (H, W) dtype=bool, True = solid/collision
@@ -25,6 +31,8 @@ CollisionMap = np.ndarray  # expected shape (H, W) dtype=bool, True = solid/coll
 
 @dataclass
 class Stickman:
+    damage_rects: list = field(default_factory=list)
+
     # Core state
     pos: Vec2 = (1000.0, 200.0)  # (x, y) in pixels (top-left of the stickman AABB)
     width: int = 21
@@ -44,14 +52,32 @@ class Stickman:
     is_moving_left: bool = False
     is_moving_right: bool = False
     wants_jump: bool = False
+    is_flying: bool = False
     facing_right: bool = True  # Track which direction stickman is facing
     is_punching: bool = False
+    is_kamehameha: bool = False
     punch_direction: str = "horizontal"  # "horizontal", "up", or "down"
     _punch_timer: float = 0.0  # Timer to keep punch animation visible
+    _kamehameha_timer: float = 0.0  # Timer for kamehameha animation
+    _blast_pos: Optional[Tuple[int, int]] = field(
+        default=None, init=False, repr=False
+    )  # Position of blast
+    _blast_facing_right: bool = field(
+        default=True, init=False, repr=False
+    )  # Direction of blast
+    _blast_sound_channel: any = field(
+        default=None, init=False, repr=False
+    )  # Track blast sound
     _walk_sound_counter: int = 0  # Counter to play walk sound periodically
-    
+    _flying_sound_counter: int = 0  # Counter to play flying sound periodically
+    _aura_sound_channel: any = field(
+        default=None, init=False, repr=False
+    )  # Track aura sound channel
+
     # Voice detection threading
-    _voice_thread: Optional[threading.Thread] = field(default=None, init=False, repr=False)
+    _voice_thread: Optional[threading.Thread] = field(
+        default=None, init=False, repr=False
+    )
     _is_listening: bool = field(default=False, init=False, repr=False)
     _hame_detected: bool = field(default=False, init=False, repr=False)
     _loud_sound_detected: bool = field(default=False, init=False, repr=False)
@@ -69,8 +95,13 @@ class Stickman:
     # Should return a boolean collision map (H,W) where True=solid.
     collision_map_provider: Optional[Callable[[], CollisionMap]] = None
 
+    # Most common background color (updated at 1 FPS)
+    most_common_col: Tuple[int, int, int] = (128, 128, 128)  # Default gray
+
     # Internal timing for 20fps collision map updates
     _collision_accum: float = 0.0
+    # Internal timing for 1fps color sampling
+    _color_sample_accum: float = 0.0
 
     # Keyboard listener (use field default_factory to avoid mutable default)
     _keyboard_listener: Optional[keyboard.Listener] = field(
@@ -101,7 +132,9 @@ class Stickman:
         """Start continuous voice detection in background thread"""
         if self._voice_thread is None:
             self._is_listening = True
-            self._voice_thread = threading.Thread(target=self._voice_detection_loop, daemon=True)
+            self._voice_thread = threading.Thread(
+                target=self._voice_detection_loop, daemon=True
+            )
             self._voice_thread.start()
 
     def _voice_detection_loop(self):
@@ -109,18 +142,20 @@ class Stickman:
         while self._is_listening:
             try:
                 # Check for "hame" word
-                if voice_detect.detect_word_hame(duration=2, similarity_threshold=0.0001):
+                if voice_detect.detect_word_hame(
+                    duration=2, similarity_threshold=0.0001
+                ):
                     self._hame_detected = True
             except Exception:
                 pass
-            
+
             try:
                 # Check for loud sound
                 if voice_detect.detect_loud_sound(threshold=0.02, duration=0.1):
                     self._loud_sound_detected = True
             except Exception:
                 pass
-            
+
             time.sleep(0.05)  # Small delay to prevent CPU overuse
 
     def stop_voice_listener(self):
@@ -129,6 +164,12 @@ class Stickman:
         if self._voice_thread:
             self._voice_thread.join(timeout=2.0)
             self._voice_thread = None
+
+    def get_blast_image_data(self):
+        """Return blast image data for rendering: (x, y, facing_right) or None"""
+        if self._blast_pos is not None:
+            return (self._blast_pos[0], self._blast_pos[1], self._blast_facing_right)
+        return None
 
     def _on_press(self, key):
         """Handle key press events"""
@@ -149,6 +190,16 @@ class Stickman:
                     self.punch()
                 elif char == "k":
                     self.punch_direction = "down"
+                elif char == "e" and ENABLE_E_FOR_FLYING:
+                    self.fly()
+                elif char == "d":
+                    self.is_flying = False  # Turn off flying
+                    # Stop aura sound when flying is turned off
+                    if self._aura_sound_channel is not None:
+                        self._aura_sound_channel.stop()
+                        self._aura_sound_channel = None
+                elif char == "r" and ENABLE_R_FOR_KAMEHAMEHA:
+                    self.kamehameha()
         except AttributeError:
             pass
 
@@ -220,20 +271,105 @@ class Stickman:
     def kamehameha(self):
         """Execute kamehameha attack"""
         print("🔵 KAMEHAMEHA!!!")
+        from pygame import mixer
+
+        # Set kamehameha state
+        self.is_kamehameha = True
+        self._kamehameha_timer = 3.0  # Animation lasts 3 seconds
+
+        # Calculate blast position (directly in front of stickman)
+        x, y = self.pos
+        center_y = int(
+            y + self.height // 2 - 25
+        )  # Center vertically (blast is 50px tall)
+
+        if self.facing_right:
+            blast_x = int(x + self.width)  # Right side of stickman
+        else:
+            blast_x = int(x - 1000)  # Left side of stickman (blast is 1000px wide)
+
+        self._blast_pos = (blast_x, center_y)
+        self._blast_facing_right = self.facing_right
+
+        # Play blast sound
+        if not mixer.get_init():
+            mixer.init()
+        blast_sound = mixer.Sound("assets/sounds/blast.wav")
+        self._blast_sound_channel = blast_sound.play()
+
+    def on_blast_end(self):
+        """Called when the blast sound finishes playing"""
+        print("💥 Blast ended!")
+        self.damage_rects.append(
+            (
+                self._blast_pos[0],
+                self._blast_pos[1],
+            )
+        )
+        # Add your custom logic here
 
     def fly(self):
-        """Make the stickman fly"""
-        print("🚀 Flying!")
+        """Toggle flying mode"""
+        self.is_flying = not self.is_flying
+        if self.is_flying:
+            print("🚀 Flying mode ON!")
+        else:
+            print("🚀 Flying mode OFF!")
+            # Stop aura sound when flying is turned off
+            if self._aura_sound_channel is not None:
+                self._aura_sound_channel.stop()
+                self._aura_sound_channel = None
 
     def animate(self):
         """Update sprite based on movement state (placeholder)"""
         # This is a placeholder for animation logic.
         # You can expand this to cycle through frames based on movement.
 
+        # Kamehameha animation takes highest priority
+        if self.is_kamehameha:
+            if self.animation_frame % 30 < 10:
+                self.sprite_url = "assets/sprites/stickman_blask1.png"
+            elif self.animation_frame % 30 < 20:
+                self.sprite_url = "assets/sprites/stickman_blask2.png"
+            else:
+                self.sprite_url = "assets/sprites/stickman_blask3.png"
+        # Flying animation takes high priority
+        elif self.is_flying:
+            if self.is_punching:
+                # Flying punch animations
+                if self.punch_direction == "up":
+                    if self.animation_frame % 30 < 10:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_up1.png"
+                    elif self.animation_frame % 30 < 20:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_up2.png"
+                    else:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_up3.png"
+                elif self.punch_direction == "down":
+                    if self.animation_frame % 30 < 10:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_down1.png"
+                    elif self.animation_frame % 30 < 20:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_down2.png"
+                    else:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_down3.png"
+                else:  # horizontal punch
+                    if self.animation_frame % 30 < 10:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit1.png"
+                    elif self.animation_frame % 30 < 20:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit2.png"
+                    else:
+                        self.sprite_url = "assets/sprites/stickman_fly_hit3.png"
+            else:
+                # Flying idle/movement - single sprite
+                if self.animation_frame % 30 < 10:
+                    self.sprite_url = "assets/sprites/sprite_fly_idle1.png"
+                elif self.animation_frame % 30 < 20:
+                    self.sprite_url = "assets/sprites/sprite_fly_idle2.png"
+                else:
+                    self.sprite_url = "assets/sprites/sprite_fly_idle3.png"
         # Punching animation takes priority
-        if self.is_punching:
+        elif self.is_punching:
             # Different animations for different punch directions
-            if self.wants_jump:
+            if self.punch_direction == "up":
                 if self.animation_frame % 30 < 10:
                     self.sprite_url = "assets/sprites/stickman_punch_up1.png"
                 elif self.animation_frame % 30 < 20:
@@ -306,6 +442,12 @@ class Stickman:
             self._collision_accum %= COLLISION_MAP_DT
             self.update_collision_map()
 
+        # Update most common color at 1 FPS
+        self._color_sample_accum += dt
+        if self._color_sample_accum >= 1.0:  # 1 second = 1 FPS
+            self._color_sample_accum %= 1.0
+            self.update_background_color()
+
         # Physics step
         self.apply_gravity(dt)
 
@@ -317,23 +459,54 @@ class Stickman:
         # Horizontal movement intent -> velocity
         vx, vy = self.vel
         desired_vx = 0.0
+        desired_vy = vy  # Keep current vertical velocity by default
+
         if self.is_moving_left and not self.is_moving_right:
             desired_vx = -self.speed
             self.facing_right = False  # Face left when moving left
         elif self.is_moving_right and not self.is_moving_left:
             desired_vx = self.speed
             self.facing_right = True  # Face right when moving right
+
+        # When flying, handle vertical movement with down key (k sets punch_direction to "down")
+        if self.is_flying:
+            if self.punch_direction == "down":
+                desired_vy = self.speed  # Move down when k is held
+            elif self.punch_direction == "up":
+                desired_vy = (
+                    -self.speed
+                )  # Move up when i is held (handled in try_jump but also here)
+            else:
+                desired_vy = 0.0  # Stop vertical movement when no key pressed
+
         vx = desired_vx
+        vy = desired_vy
         self.vel = (vx, vy)
 
-        # Play walk sound periodically while moving on ground
-        if (self.is_moving_left or self.is_moving_right) and self.is_on_ground():
+        # Play flying aura sound when flying, otherwise play walk sound
+        if self.is_flying:
+            # Check if aura sound is already playing
+            if (
+                self._aura_sound_channel is None
+                or not self._aura_sound_channel.get_busy()
+            ):
+                from pygame import mixer
+
+                if not mixer.get_init():
+                    mixer.init()
+                aura_sound = mixer.Sound("assets/sounds/aura_real.mp3")
+                self._aura_sound_channel = aura_sound.play()
+            self._walk_sound_counter = 0  # Reset walk counter
+            self._flying_sound_counter = 0
+        elif (self.is_moving_left or self.is_moving_right) and self.is_on_ground():
             self._walk_sound_counter += 1
             if self._walk_sound_counter >= 15:  # Play every ~15 frames (quarter second)
                 sound.play_sound("assets/sounds/walking_real.mp3", wait=False)
                 self._walk_sound_counter = 0
+            self._flying_sound_counter = 0  # Reset flying counter
         else:
             self._walk_sound_counter = 0
+            self._flying_sound_counter = 0
 
         # Move + collide
         self._move_and_collide(dt)
@@ -345,11 +518,30 @@ class Stickman:
                 self.is_punching = False
                 self._punch_timer = 0.0
 
+        # Update kamehameha timer and handle blast
+        if self._kamehameha_timer > 0:
+            self._kamehameha_timer -= dt
+
+            # Check if blast sound finished playing
+            if (
+                self._blast_sound_channel is not None
+                and not self._blast_sound_channel.get_busy()
+            ):
+                if self._blast_pos is not None:
+                    self.on_blast_end()
+                    self._blast_pos = None  # Clear blast position
+                    self._blast_sound_channel = None
+
+            if self._kamehameha_timer <= 0:
+                self.is_kamehameha = False
+                self._kamehameha_timer = 0.0
+                self._blast_pos = None
+
         # Check voice detection flags (non-blocking, just reads flags set by background thread)
         if self._hame_detected:
             self.kamehameha()
             self._hame_detected = False  # Reset flag
-        
+
         if self._loud_sound_detected:
             self.fly()
             self._loud_sound_detected = False  # Reset flag
@@ -364,10 +556,27 @@ class Stickman:
         if self.collision_map_provider is not None:
             self.collision_map = self.collision_map_provider(self)
 
+    def update_background_color(self) -> None:
+        """Sample the most common background color (called at 1 FPS)."""
+
+        # Run in background thread to avoid blocking game loop
+        def sample_color():
+            import screen_read
+
+            screenshot = screen_read.screenshot_to_numpy()
+            color = screen_read.get_most_common_color(screenshot)
+            self.most_common_col = color
+
+        # Start thread but don't wait for it
+        color_thread = threading.Thread(target=sample_color, daemon=True)
+        color_thread.start()
+
     # -----------------------
     # Physics helpers
     # -----------------------
     def apply_gravity(self, dt: float) -> None:
+        if self.is_flying:
+            return  # No gravity when flying
         vx, vy = self.vel
         vy += self.gravity * dt
         if vy > self.max_fall_speed:
@@ -375,8 +584,12 @@ class Stickman:
         self.vel = (vx, vy)
 
     def try_jump(self) -> None:
-        """Apply jump impulse if standing on solid ground."""
-        if self.is_on_ground():
+        """Apply jump impulse if standing on solid ground, or move up when flying."""
+        if self.is_flying:
+            # When flying, jump button moves up
+            vx, _vy = self.vel
+            self.vel = (vx, -self.speed)  # Move up at walking speed
+        elif self.is_on_ground():
             vx, _vy = self.vel
             self.vel = (vx, -self.jump_velocity)
             # Play jump sound

@@ -27,14 +27,14 @@ FRAME_INTERVAL_MS: int = max(1, int(1000 / TARGET_FPS))
 try:
     # PyQt6
     from PyQt6.QtCore import Qt, QTimer, QRect
-    from PyQt6.QtGui import QPainter, QPixmap, QImage
+    from PyQt6.QtGui import QPainter, QPixmap, QImage, QColor
     from PyQt6.QtWidgets import QWidget
 
     QT6 = True
 except ImportError:
     # PyQt5 fallback
     from PyQt5.QtCore import Qt, QTimer, QRect
-    from PyQt5.QtGui import QPainter, QPixmap, QImage
+    from PyQt5.QtGui import QPainter, QPixmap, QImage, QColor
     from PyQt5.QtWidgets import QWidget
 
     QT6 = False
@@ -96,6 +96,9 @@ class Overlay(QWidget):
         # Stored images to draw
         self.images: List[OverlayImage] = []
 
+        # Cache for loaded pixmaps to avoid reloading from disk every frame
+        self._pixmap_cache: dict = {}
+
         # 60fps-ish repaint timer (configurable via TARGET_FPS)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.update)
@@ -117,17 +120,34 @@ class Overlay(QWidget):
 
         Args:
             items: iterable of (image_source, x, y) or (image_source, x, y, flip_horizontal)
+                   or (x, y, color, width, height) for rectangles
                 image_source can be:
                   - URL string (http/https/file)
                   - numpy array shape (H,W,3) or (H,W,4), dtype uint8
                   - QPixmap
                 flip_horizontal: optional bool, whether to flip the image horizontally
+                color: tuple (r, g, b) or (r, g, b, a) for rectangle fill color
+                width, height: dimensions for rectangle
             assume_numpy_format:
                 When numpy has 4 channels, interpret it as "BGRA" (common from mss)
                 or "RGBA". For 3 channels, assumes "RGB".
         """
         converted: List[OverlayImage] = []
         for item in items:
+            # Check if this is a rectangle specification: (x, y, color, width, height)
+            if len(item) == 5 and isinstance(item[2], (tuple, list)):
+                x, y, color, width, height = item
+                # Create a colored rectangle pixmap
+                pm = QPixmap(width, height)
+                # Handle both RGB and RGBA color tuples
+                if len(color) == 3:
+                    qcolor = QColor(color[0], color[1], color[2], 255)
+                else:
+                    qcolor = QColor(color[0], color[1], color[2], color[3])
+                pm.fill(qcolor)
+                converted.append(OverlayImage(pm, int(x), int(y), False))
+                continue
+
             if len(item) == 3:
                 src, x, y = item
                 flip = False
@@ -216,6 +236,10 @@ class Overlay(QWidget):
         raise TypeError(f"Unsupported image source type: {type(src)}")
 
     def _pixmap_from_url(self, url: str) -> QPixmap:
+        # Check cache first
+        if url in self._pixmap_cache:
+            return self._pixmap_cache[url]
+
         pm = QPixmap()
         try:
             # Check if it's a local file path
@@ -224,12 +248,18 @@ class Overlay(QWidget):
                 pm = QPixmap(url)
                 if pm.isNull():
                     print(f"Warning: Failed to load image from: {url}")
+                else:
+                    # Cache the loaded pixmap
+                    self._pixmap_cache[url] = pm
                 return pm
 
             # It's a URL - download and load
             with urllib.request.urlopen(url) as resp:
                 data = resp.read()
             pm.loadFromData(data)
+            # Cache remote images too
+            if not pm.isNull():
+                self._pixmap_cache[url] = pm
         except Exception as e:
             # Keep null pixmap if download/load fails
             print(f"Error loading image from {url}: {e}")

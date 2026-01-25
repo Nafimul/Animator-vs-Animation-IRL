@@ -77,6 +77,25 @@ class App:
                 )
             )
 
+            # Add blast image if kamehameha is active
+            blast_data = self.stickman.get_blast_image_data()
+            if blast_data is not None:
+                blast_x, blast_y, blast_facing_right = blast_data
+                images.append(
+                    (
+                        "assets/sprites/blast.png",
+                        int(blast_x),
+                        int(blast_y),
+                        not blast_facing_right,  # Flip based on facing direction
+                    )
+                )
+
+            # if self.stickman.damage_rects:
+            #     for rect in self.stickman.damage_rects:
+            #         images.append(rect)
+
+            # images.append((0, 0, self.stickman.most_common_col, 1000, 50))
+
             # Update overlay with new stickman position
             self.overlay.set_images(images)
 
