@@ -20,7 +20,7 @@ class SignalHandler(QObject):
 
 
 class App:
-    def __init__(self, use_apis=True):
+    def __init__(self, use_apis=False):
         self.running = True
         self.use_apis = use_apis
         self.overlay = None
