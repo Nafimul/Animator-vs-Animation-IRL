@@ -1,5 +1,6 @@
 import time
 from pygame import mixer
+import config
 
 
 def play_sound(filepath: str, wait=True):
@@ -10,12 +11,15 @@ def play_sound(filepath: str, wait=True):
         wait: If True, wait for the sound to finish playing before returning
     """
     try:
+        # Get the correct path for assets (works in exe and dev)
+        full_path = config.get_asset_path(filepath)
+
         # Initialize mixer if not already initialized
         if not mixer.get_init():
             mixer.init()
 
         # Load and play the sound
-        sound = mixer.Sound(filepath)
+        sound = mixer.Sound(full_path)
         channel = sound.play()
 
         # Wait for the sound to finish if requested

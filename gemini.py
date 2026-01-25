@@ -3,6 +3,13 @@ from google.genai import types
 import mss
 import io
 from PIL import Image
+import config
+import os
+
+# Set API key from config if available
+api_key = config.get_api_key("GOOGLE_API_KEY")
+if api_key:
+    os.environ["GOOGLE_API_KEY"] = api_key
 
 
 def get_snarky_comment() -> str:
