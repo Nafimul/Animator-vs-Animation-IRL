@@ -133,6 +133,12 @@ Edit these constants in the respective files to customize behavior:
 
 Based off of the viral video by Alan Becker: Animator vs. Animation
 
+stickman animation based off of the one by Angelina at https://www.pngitem.com/middle/ThbJJm_stickman-fight-sprite-sheet-hd-png-download/
+
+walking sound effect by freesound_community at https://pixabay.com/users/freesound_community-46691455/ on pixabay
+
+Fire Crackling Sounds sound effect by DRAGON-STUDIO at https://pixabay.com/sound-effects/nature-fire-crackling-sounds-427410/ on pixabay
+
 **Animation:**
 - Stickman sprites based on work by Angelina at [PNG Item](https://www.pngitem.com/middle/ThbJJm_stickman-fight-sprite-sheet-hd-png-download/)
 
