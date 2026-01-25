@@ -1,0 +1,16 @@
+# Core Dependencies
+numpy
+PyQt6
+pygame
+pynput
+mss
+Pillow
+
+# AI/Voice Dependencies
+google-genai
+elevenlabs
+sounddevice
+SpeechRecognition
+
+# Environment Variables
+python-dotenv
