@@ -1,12 +1,13 @@
 import os
 from typing import IO
 from io import BytesIO
+from dotenv import load_dotenv
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
-import config
 
-# Get API key from config (works in both dev and exe)
-ELEVENLABS_API_KEY = config.get_api_key("ELEVENLABS_API_KEY")
+load_dotenv()
+
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 elevenlabs = ElevenLabs(
     api_key=ELEVENLABS_API_KEY,
 )

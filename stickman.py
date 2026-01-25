@@ -8,7 +8,6 @@ import sound
 import time
 import voice_detect
 import threading
-import config
 
 
 # ----------------------------
@@ -46,7 +45,7 @@ class Stickman:
     collision_map_x: int = 0  # Screen X coordinate where collision map starts
     collision_map_y: int = 0  # Screen Y coordinate where collision map starts
     # Sprite (for overlay rendering)
-    sprite_url: str = config.get_asset_path("assets/sprites/stickman_idle.png")
+    sprite_url: str = "assets/sprites/stickman_idle.png"
     animation_frame: int = 0
 
     # Input flags (set these from your keyboard/controller code)
@@ -303,7 +302,7 @@ class Stickman:
         # Play blast sound
         if not mixer.get_init():
             mixer.init()
-        blast_sound = mixer.Sound(config.get_asset_path("assets/sounds/blast.wav"))
+        blast_sound = mixer.Sound("assets/sounds/blast.wav")
         self._blast_sound_channel = blast_sound.play()
 
     def on_blast_end(self):
@@ -342,142 +341,82 @@ class Stickman:
         # Kamehameha animation takes highest priority
         if self.is_kamehameha:
             if self.animation_frame % 30 < 10:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_blask1.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_blask1.png"
             elif self.animation_frame % 30 < 20:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_blask2.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_blask2.png"
             else:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_blask3.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_blask3.png"
         # Flying animation takes high priority
         elif self.is_flying:
             if self.is_punching:
                 # Flying punch animations
                 if self.punch_direction == "up":
                     if self.animation_frame % 30 < 10:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit_up1.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_up1.png"
                     elif self.animation_frame % 30 < 20:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit_up2.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_up2.png"
                     else:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit_up3.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_up3.png"
                 elif self.punch_direction == "down":
                     if self.animation_frame % 30 < 10:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit_down1.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_down1.png"
                     elif self.animation_frame % 30 < 20:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit_down2.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_down2.png"
                     else:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit_down3.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit_down3.png"
                 else:  # horizontal punch
                     if self.animation_frame % 30 < 10:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit1.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit1.png"
                     elif self.animation_frame % 30 < 20:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit2.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit2.png"
                     else:
-                        self.sprite_url = config.get_asset_path(
-                            "assets/sprites/stickman_fly_hit3.png"
-                        )
+                        self.sprite_url = "assets/sprites/stickman_fly_hit3.png"
             else:
                 # Flying idle/movement - single sprite
                 if self.animation_frame % 30 < 10:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/sprite_fly_idle1.png"
-                    )
+                    self.sprite_url = "assets/sprites/sprite_fly_idle1.png"
                 elif self.animation_frame % 30 < 20:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/sprite_fly_idle2.png"
-                    )
+                    self.sprite_url = "assets/sprites/sprite_fly_idle2.png"
                 else:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/sprite_fly_idle3.png"
-                    )
+                    self.sprite_url = "assets/sprites/sprite_fly_idle3.png"
         # Punching animation takes priority
         elif self.is_punching:
             # Different animations for different punch directions
             if self.punch_direction == "up":
                 if self.animation_frame % 30 < 10:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch_up1.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch_up1.png"
                 elif self.animation_frame % 30 < 20:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch_up2.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch_up2.png"
                 else:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch_up3.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch_up3.png"
             elif self.punch_direction == "down":
                 if self.animation_frame % 30 < 10:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch_down1.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch_down1.png"
                 elif self.animation_frame % 30 < 20:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch_down2.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch_down2.png"
                 else:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch_down3.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch_down3.png"
             else:  # horizontal punch
                 if self.animation_frame % 30 < 10:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch1.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch1.png"
                 elif self.animation_frame % 30 < 20:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch2.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch2.png"
                 else:
-                    self.sprite_url = config.get_asset_path(
-                        "assets/sprites/stickman_punch3.png"
-                    )
+                    self.sprite_url = "assets/sprites/stickman_punch3.png"
         elif self.wants_jump:
             if self.animation_frame % 30 < 10:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_jump1.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_jump1.png"
             elif self.animation_frame % 30 < 20:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_jump2.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_jump2.png"
             elif self.animation_frame % 30 < 30:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_jump3.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_jump3.png"
         elif self.is_moving_left or self.is_moving_right:
             if self.animation_frame % 30 < 10:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_run1.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_run1.png"
             elif self.animation_frame % 30 < 20:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_run2.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_run2.png"
             elif self.animation_frame % 30 < 30:
-                self.sprite_url = config.get_asset_path(
-                    "assets/sprites/stickman_run3.png"
-                )
+                self.sprite_url = "assets/sprites/stickman_run3.png"
         else:
             self.sprite_url = "assets/sprites/stickman_idle.png"
 
@@ -568,9 +507,7 @@ class Stickman:
 
                 if not mixer.get_init():
                     mixer.init()
-                aura_sound = mixer.Sound(
-                    config.get_asset_path("assets/sounds/aura_real.mp3")
-                )
+                aura_sound = mixer.Sound("assets/sounds/aura_real.mp3")
                 self._aura_sound_channel = aura_sound.play()
             self._walk_sound_counter = 0  # Reset walk counter
             self._flying_sound_counter = 0
