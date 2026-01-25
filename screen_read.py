@@ -163,11 +163,6 @@ def get_most_common_color(
     sum_b, sum_g, sum_r, count = most_common_group
     avg_color = (sum_b // count, sum_g // count, sum_r // count)
 
-    print(
-        f"🔍 Sampled {len(sampled_pixels)} pixels, found {len(color_groups)} color groups"
-    )
-    print(f"🏆 Most common group: {count} pixels, average color: BGR{avg_color}")
-
     return avg_color
 
 

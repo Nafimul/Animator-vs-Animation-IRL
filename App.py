@@ -67,16 +67,6 @@ class App:
             #         int(self.stickman.collision_map_y))
             #     )
 
-            # Tuple format: (image, x, y, flip_horizontal)
-            images.append(
-                (
-                    self.stickman.sprite_url,
-                    int(self.stickman.pos[0]),
-                    int(self.stickman.pos[1]),
-                    not self.stickman.facing_right,  # Flip when facing left
-                )
-            )
-
             # Add blast image if kamehameha is active
             blast_data = self.stickman.get_blast_image_data()
             if blast_data is not None:
@@ -90,12 +80,25 @@ class App:
                     )
                 )
 
-            # if self.stickman.damage_rects:
-            #     if self.stickman.most_common_col is not None:
-            #         for rect in self.stickman.damage_rects:
-            #                 images.append((rect[0], rect[1], self.stickman.most_common_col, 1000, 50))
-            
+            # print(self.stickman.damage_rects, self.stickman.most_common_col, self.stickman.damage_rects)
+            if self.stickman.damage_rects is not None:
+                if self.stickman.most_common_col is not None:
+                    for rect in self.stickman.damage_rects:
+                        images.append(
+                            (rect[0], rect[1], self.stickman.most_common_col, 1000, 50)
+                        )
 
+            
+            # Tuple format: (image, x, y, flip_horizontal)
+            images.append(
+                (
+                    self.stickman.sprite_url,
+                    int(self.stickman.pos[0]),
+                    int(self.stickman.pos[1]),
+                    not self.stickman.facing_right,  # Flip when facing left
+                )
+            )
+            
             # Update overlay with new stickman position
             self.overlay.set_images(images)
 

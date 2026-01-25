@@ -68,6 +68,7 @@ class Stickman:
     _blast_sound_channel: any = field(
         default=None, init=False, repr=False
     )  # Track blast sound
+    _blast_timer: float = 0.0  # Timer to trigger on_blast_end after 4.8 seconds
     _walk_sound_counter: int = 0  # Counter to play walk sound periodically
     _flying_sound_counter: int = 0  # Counter to play flying sound periodically
     _aura_sound_channel: any = field(
@@ -296,6 +297,7 @@ class Stickman:
 
         self._blast_pos = (blast_x, center_y)
         self._blast_facing_right = self.facing_right
+        self._blast_timer = 4.8  # Timer for on_blast_end callback
 
         # Play blast sound
         if not mixer.get_init():
@@ -306,12 +308,17 @@ class Stickman:
     def on_blast_end(self):
         """Called when the blast sound finishes playing"""
         print("💥 Blast ended!")
-        self.damage_rects.append(
-            (
-                self._blast_pos[0],
-                self._blast_pos[1],
+        if self._blast_pos is not None:
+            print("💥")
+            self.damage_rects.append(
+                (
+                    self._blast_pos[0],
+                    self._blast_pos[1],
+                )
             )
-        )
+            print(f"Added damage rect at {self._blast_pos[0]}, {self._blast_pos[1]}")
+            # Clear blast position after processing
+            self._blast_pos = None
         # Add your custom logic here
 
     def fly(self):
@@ -528,20 +535,17 @@ class Stickman:
         if self._kamehameha_timer > 0:
             self._kamehameha_timer -= dt
 
-            # Check if blast sound finished playing
-            if (
-                self._blast_sound_channel is not None
-                and not self._blast_sound_channel.get_busy()
-            ):
-                if self._blast_pos is not None:
-                    self.on_blast_end()
-                    self._blast_pos = None  # Clear blast position
-                    self._blast_sound_channel = None
-
             if self._kamehameha_timer <= 0:
                 self.is_kamehameha = False
                 self._kamehameha_timer = 0.0
-                self._blast_pos = None
+                # Don't clear _blast_pos here - let on_blast_end handle it
+
+        # Update blast timer (4.8 seconds after blast starts)
+        if self._blast_timer > 0:
+            self._blast_timer -= dt
+            if self._blast_timer <= 0:
+                self.on_blast_end()
+                self._blast_timer = 0.0
 
         # Check voice detection flags (non-blocking, just reads flags set by background thread)
         if self._hame_detected:
