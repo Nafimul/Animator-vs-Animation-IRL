@@ -3,6 +3,26 @@ import numpy as np
 import colorsys
 import traceback
 
+# Cached background color (detected once and reused)
+_cached_background_color = None
+
+
+def detect_and_cache_background_color():
+    """Detect the most common color and cache it for future use."""
+    global _cached_background_color
+    screenshot = screenshot_to_numpy()
+    _cached_background_color = get_most_common_color(screenshot)
+    print(f"🎨 Background color detected and cached: BGR{_cached_background_color}")
+    return _cached_background_color
+
+
+def get_cached_background_color():
+    """Get the cached background color, detecting it if not yet cached."""
+    global _cached_background_color
+    if _cached_background_color is None:
+        return detect_and_cache_background_color()
+    return _cached_background_color
+
 
 def screenshot_to_numpy(monitor=1, region=None):
     """
@@ -72,7 +92,7 @@ def colors_are_similar(
 def get_most_common_color(
     image,
     sample_rate=15,  # Increased from 5 to 15 for better performance
-    color_distance_threshold=50,  # RGB distance threshold (0-255 scale)
+    color_distance_threshold=100,  # RGB distance threshold (0-255 scale)
 ):
     """
     Find the most common color in the image by grouping similar colors together.
@@ -103,37 +123,62 @@ def get_most_common_color(
         return (0, 0, 0)
 
     # Fast color grouping using RGB distance instead of HLS
+    # Store (sum_b, sum_g, sum_r, count) for each group to calculate average
     color_groups = []
     threshold_sq = color_distance_threshold**2  # Use squared distance to avoid sqrt
 
     for pixel in sampled_pixels:
         found_group = False
-        for i, (group_color, count) in enumerate(color_groups):
+        for i, (sum_b, sum_g, sum_r, count) in enumerate(color_groups):
+            # Calculate average color of this group
+            avg_b = sum_b // count
+            avg_g = sum_g // count
+            avg_r = sum_r // count
+
             # Calculate squared RGB distance (faster than HLS conversion)
             dist_sq = (
-                (pixel[0] - group_color[0]) ** 2
-                + (pixel[1] - group_color[1]) ** 2
-                + (pixel[2] - group_color[2]) ** 2
+                (int(pixel[0]) - avg_b) ** 2
+                + (int(pixel[1]) - avg_g) ** 2
+                + (int(pixel[2]) - avg_r) ** 2
             )
             if dist_sq <= threshold_sq:
-                color_groups[i] = (group_color, count + 1)
+                # Add to this group (convert to int to avoid overflow)
+                color_groups[i] = (
+                    sum_b + int(pixel[0]),
+                    sum_g + int(pixel[1]),
+                    sum_r + int(pixel[2]),
+                    count + 1,
+                )
                 found_group = True
                 break
 
         if not found_group:
-            color_groups.append((pixel, 1))
+            color_groups.append((int(pixel[0]), int(pixel[1]), int(pixel[2]), 1))
 
     if not color_groups:
         return (0, 0, 0)
 
-    most_common = max(color_groups, key=lambda x: x[1])
-    return most_common[0]
+    # Find group with highest count and return its average color
+    most_common_group = max(color_groups, key=lambda x: x[3])
+    sum_b, sum_g, sum_r, count = most_common_group
+    avg_color = (sum_b // count, sum_g // count, sum_r // count)
+
+    print(
+        f"🔍 Sampled {len(sampled_pixels)} pixels, found {len(color_groups)} color groups"
+    )
+    print(f"🏆 Most common group: {count} pixels, average color: BGR{avg_color}")
+
+    return avg_color
 
 
 def image_to_bool_mask(
     image,
     target_color=None,
-    always_background_colors=[(255, 72, 0), (0,141,255), (186,224,255)],  # color of the stickman
+    always_background_colors=[
+        (255, 72, 0),
+        (0, 141, 255),
+        (186, 224, 255),
+    ],  # color of the stickman
     hue_threshold=0.1,
     lightness_threshold=0.1,
     saturation_threshold=0.1,
@@ -159,10 +204,7 @@ def image_to_bool_mask(
 
     # Auto-detect target color if not provided
     if target_color is None:
-        target_color = get_most_common_color(
-            image,
-            sample_rate=15,  # Use default sample rate
-        )
+        target_color = get_cached_background_color()
 
     # If BGRA or RGBA, drop alpha
     if image.ndim == 3 and image.shape[2] == 4:

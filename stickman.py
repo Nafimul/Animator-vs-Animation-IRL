@@ -200,6 +200,12 @@ class Stickman:
                         self._aura_sound_channel = None
                 elif char == "r" and ENABLE_R_FOR_KAMEHAMEHA:
                     self.kamehameha()
+                elif char == "g":
+                    # Re-detect background color
+                    import screen_read
+
+                    screen_read.detect_and_cache_background_color()
+                    print("🔄 Background color re-detected!")
         except AttributeError:
             pass
 
@@ -556,6 +562,12 @@ class Stickman:
         if self.collision_map_provider is not None:
             self.collision_map = self.collision_map_provider(self)
 
+            # Debug: Check collision map quality
+            if self.collision_map is not None:
+                total_pixels = self.collision_map.size
+                collision_pixels = self.collision_map.sum()
+                collision_percent = (collision_pixels / total_pixels) * 100
+
     def update_background_color(self) -> None:
         """Sample the most common background color (called at 1 FPS)."""
 
@@ -635,18 +647,20 @@ class Stickman:
         self.vel = (vx, vy)
 
     def can_move_horizontal(self, dx: float) -> bool:
-        """Return True if stickman AABB can move by dx without colliding."""
+        """Return True if stickman AABB can move by dx without colliding (ignores bottom 5 rows)."""
         if self.collision_map is None:
             return True
         x, y = self.pos
-        return not self._aabb_collides(x + dx, y)
+        result = not self._aabb_collides_ignore_bottom(x + dx, y, ignore_rows=5)
+        return result
 
     def can_move_vertical(self, dy: float) -> bool:
         """Return True if stickman AABB can move by dy without colliding."""
         if self.collision_map is None:
             return True
         x, y = self.pos
-        return not self._aabb_collides(x, y + dy)
+        result = not self._aabb_collides(x, y + dy)
+        return result
 
     def is_on_ground(self) -> bool:
         """True if there is solid pixel just below the stickman."""
@@ -735,10 +749,14 @@ class Stickman:
         bottom_c = min(H, bottom)
 
         if bottom_c <= top_c:  # No rows left to check after ignoring bottom
+            print(
+                f"⚠️ No rows to check after ignoring bottom: bottom_c={bottom_c}, top_c={top_c}"
+            )
             return False
 
         region = cm[top_c:bottom_c, left_c:right_c]
-        return bool(region.any())
+        collides = bool(region.any())
+        return collides
 
     def _resolve_vertical(self, x: float, y: float, dy: float) -> float:
         """Move 1px steps until blocked (simple, robust)."""

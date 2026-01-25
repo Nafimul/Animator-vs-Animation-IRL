@@ -91,10 +91,10 @@ class App:
                 )
 
             # if self.stickman.damage_rects:
-            #     for rect in self.stickman.damage_rects:
-            #         images.append(rect)
-
-            # images.append((0, 0, self.stickman.most_common_col, 1000, 50))
+            #     if self.stickman.most_common_col is not None:
+            #         for rect in self.stickman.damage_rects:
+            #                 images.append((rect[0], rect[1], self.stickman.most_common_col, 1000, 50))
+            
 
             # Update overlay with new stickman position
             self.overlay.set_images(images)
