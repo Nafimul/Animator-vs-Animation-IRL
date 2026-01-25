@@ -3,6 +3,11 @@ from google.genai import types
 import mss
 import io
 from PIL import Image
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def get_snarky_comment() -> str:
@@ -32,12 +37,16 @@ def get_snarky_comment() -> str:
         # Create image part for Gemini
         image = types.Part.from_bytes(data=img_bytes, mime_type="image/png")
 
-        # Initialize Gemini client
-        client = genai.Client()
+        # Initialize Gemini client with API key from environment
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            return "Error: GOOGLE_API_KEY not found in environment variables"
+
+        client = genai.Client(api_key=api_key)
 
         print("Sending request to Gemini...")
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-2.0-flash-exp",
             contents=[
                 "Give me a short snarky comment about this image. Less than 20 words.",
                 image,
