@@ -1,3 +1,4 @@
+![Project Demo](screenshots/demo.png)
 # Animator-vs-Animation-IRL
 
 A 24 hour hackathon project where a stickman is put on a transparent window on top of the screen and can collide with objects that are on your screen like apps and windows. This is done by converting the pixels on the screen to a collision map: pixels similar to the most common background color are treated as background while other pixels are objects that can be collided with. The stickman can punch things which causes the mouse to move there, click it, and move back very fast. Every once in a while, the Google Gemini API makes a snarky comment about a screenshot of the screen. This comment is read aloud by ElevenLabs.
